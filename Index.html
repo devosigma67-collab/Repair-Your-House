@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Repair Your House</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+    #game-container { display: flex; width: 100vw; height: 100vh; position: relative; }
+    
+    /* LEFT SIDE: Underground Excavation & Depth Grid */
+    #underground-view { flex: 1; height: 100%; position: relative; overflow-y: auto; background: linear-gradient(180deg, #1e293b 0%, #0f172a 30%, #07090e 100%); display: flex; flex-direction: column; align-items: center; padding: 20px 10px; }
+    
+    /* Top Status Bar */
+    .status-bar { width: 100%; max-width: 700px; display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.85); padding: 10px 16px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1); }
+    .timer-badge { background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 13px; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
+    
+    /* Depth Layers */
+    .depth-section { width: 100%; max-width: 700px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; background: rgba(15, 23, 42, 0.7); padding: 14px; position: relative; }
+    .depth-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; }
+    .depth-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .grid-block { aspect-ratio: 1; background: #334155; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; transition: transform 0.1s, background 0.2s; border: 2px solid rgba(255,255,255,0.05); }
+    .grid-block:active { transform: scale(0.92); }
+    .grid-block.dug { background: #1a2234; opacity: 0.4; cursor: default; }
+    
+    /* Locked Layer Overlay */
+    .locked-overlay { position: absolute; inset: 0; background: rgba(11, 15, 25, 0.92); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px); z-index: 5; }
+    .locked-overlay h3 { font-size: 18px; margin-bottom: 6px; color: #f59e0b; }
+    .locked-overlay p { font-size: 13px; color: #94a3b8; }
+
+    /* RIGHT SIDE: Controls & Repairs */
+    #sidebar { width: 320px; height: 100%; background: #111827; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+    .stats-card { background: #1f2937; border-radius: 12px; padding: 12px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; border: 1px solid rgba(255,255,255,0.05); }
+    .stat-val { font-weight: bold; font-size: 16px; color: #10b981; }
+    .stat-val.gems { color: #38bdf8; }
+    
+    /* Upgrades in Sidebar */
+    .action-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-upgrade { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; }
+    .btn-repair { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+    .btn-menu { background: #374151; color: #fff; margin-top: auto; }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* MAIN MENU MODAL OVERLAY */
+    #main-menu { position: fixed; inset: 0; background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+    #main-menu h1 { font-size: 34px; font-weight: 900; color: #f59e0b; margin-bottom: 8px; text-shadow: 0 4px 15px rgba(245,158,11,0.3); }
+    #main-menu p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+    .menu-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; margin-bottom: 20px; }
+    .menu-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 12px; transition: transform 0.1s; }
+    .menu-btn:active { transform: scale(0.97); }
+    .btn-play { background: #10b981; color: #000; font-size: 18px; }
+    .btn-menu-upgrade { background: #f59e0b; color: #000; }
+  </style>
+</head>
+<body>
+
+  <!-- MAIN MENU -->
+  <div id="main-menu">
+    <h1>🏠 REPAIR YOUR HOUSE</h1>
+    <p>Excavate underground, collect rare gems & survive!</p>
+    
+    <div class="menu-card">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px;">
+        <span>💎 Gems: <strong id="menu-gems" style="color: #38bdf8;">100</strong></span>
+        <span>⛏️ Depth Level: <strong id="menu-level" style="color: #f59e0b;">Level 1 (0m)</strong></span>
+      </div>
+
+      <!-- MAIN MENU UPGRADE TO UNLOCK NEXT LEVEL -->
+      <button class="menu-btn btn-menu-upgrade" id="menu-upgrade-btn" onclick="buyLevelUpgrade()">
+        🔼 Upgrade to Level 2 (5m Deep)<br>
+        <small id="menu-upgrade-cost">Cost: 60 Gems</small>
+      </button>
+
+      <button class="menu-btn btn-play" onclick="startGame()">
+        ▶️ PLAY GAME
+      </button>
+    </div>
+  </div>
+
+  <!-- IN-GAME CONTAINER -->
+  <div id="game-container">
+    <!-- LEFT: Underground Digging -->
+    <div id="underground-view">
+      <div class="status-bar">
+        <span>⏱️ Map Refreshes in: <span class="timer-badge" id="refresh-timer">30s</span></span>
+        <button onclick="openMainMenu()" style="background:#374151;color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:bold;">🏠 Main Menu</button>
+      </div>
+
+      <!-- Dynamic Layers will be injected here -->
+      <div id="layers-container" style="width: 100%; max-width: 700px;"></div>
+    </div>
+
+    <!-- RIGHT: Sidebar Controls -->
+    <div id="sidebar">
+      <h2 style="font-size: 18px; margin-bottom: 12px; color: #f59e0b;">📊 Resources</h2>
+      
+      <div class="stats-card">
+        <div>💎 Gems:</div>
+        <div class="stat-val gems" id="side-gems">100</div>
+        <div>💰 Budget:</div>
+        <div class="stat-val" id="side-budget">$500</div>
+        <div>⛏️ Depth Level:</div>
+        <div class="stat-val" id="side-level">1</div>
+        <div>🏠 House HP:</div>
+        <div class="stat-val" id="side-hp">100%</div>
+      </div>
+
+      <h3 style="font-size: 15px; margin-bottom: 8px; color: #94a3b8;">🛠️ Upgrades</h3>
+      <button class="action-btn btn-upgrade" id="side-upgrade-btn" onclick="buyLevelUpgrade()">
+        <span>🔼 Next Depth Level</span>
+        <span id="side-upgrade-cost">60 💎</span>
+      </button>
+
+      <h3 style="font-size: 15px; margin: 12px 0 8px; color: #94a3b8;">🔨 Repairs</h3>
+      <button class="action-btn btn-repair" onclick="repairHouse()">
+        <span>Repair Roof & Walls</span>
+        <span>$50</span>
+      </button>
+
+      <button class="action-btn btn-menu" onclick="openMainMenu()">
+        <span>Exit to Main Menu</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // GAME STATE
+    let gems = 100;
+    let budget = 500;
+    let unlockedLevel = 1; // 1 = 0m, 2 = 5m, 3 = 10m, 4 = 15m...
+    let houseHp = 100;
+    let refreshSecondsLeft = 30;
+
+    const GEM_TYPES = [
+      { name: 'Stone', icon: '🪨', val: 0, money: 10 },
+      { name: 'Coal', icon: '⚫', val: 1, money: 20 },
+      { name: 'Ruby', icon: '💎', val: 5, money: 40 },
+      { name: 'Sapphire', icon: '🔷', val: 8, money: 60 },
+      { name: 'Diamond', icon: '💠', val: 15, money: 100 }
+    ];
+
+    // Get cost for level
+    function getUpgradeCost(lvl) {
+      return lvl * 60;
+    }
+
+    function getMetersForLevel(lvl) {
+      return (lvl - 1) * 5;
+    }
+
+    // MAIN MENU UPGRADE FUNCTION
+    function buyLevelUpgrade() {
+      const cost = getUpgradeCost(unlockedLevel);
+      if (gems >= cost) {
+        gems -= cost;
+        unlockedLevel++;
+        vibratePhone(50);
+        updateUI();
+        renderMap();
+        alert('🎉 Level ' + unlockedLevel + ' unlocked! You can now dig ' + getMetersForLevel(unlockedLevel) + ' meters deep!');
+      } else {
+        alert('❌ Need ' + cost + ' Gems! Wait for the 30s underground refresh or dig more gems.');
+      }
+    }
+
+    function repairHouse() {
+      if (budget >= 50 && houseHp < 100) {
+        budget -= 50;
+        houseHp = Math.min(100, houseHp + 25);
+        updateUI();
+      }
+    }
+
+    function updateUI() {
+      // Menu UI
+      document.getElementById('menu-gems').innerText = gems;
+      document.getElementById('menu-level').innerText = 'Level ' + unlockedLevel + ' (' + getMetersForLevel(unlockedLevel) + 'm)';
+      const nextCost = getUpgradeCost(unlockedLevel);
+      document.getElementById('menu-upgrade-btn').innerHTML = '🔼 Upgrade to Level ' + (unlockedLevel + 1) + ' (' + getMetersForLevel(unlockedLevel + 1) + 'm Deep)<br><small>Cost: ' + nextCost + ' Gems</small>';
+      
+      // Sidebar UI
+      document.getElementById('side-gems').innerText = gems;
+      document.getElementById('side-budget').innerText = '$' + budget;
+      document.getElementById('side-level').innerText = unlockedLevel + ' (' + getMetersForLevel(unlockedLevel) + 'm)';
+      document.getElementById('side-hp').innerText = houseHp + '%';
+      document.getElementById('side-upgrade-cost').innerText = nextCost + ' 💎';
+    }
+
+    function renderMap() {
+      const container = document.getElementById('layers-container');
+      container.innerHTML = '';
+
+      // Render 5 depth layers
+      for (let lvl = 1; lvl <= 5; lvl++) {
+        const meters = getMetersForLevel(lvl);
+        const isLocked = lvl > unlockedLevel;
+
+        const section = document.createElement('div');
+        section.className = 'depth-section';
+
+        const header = document.createElement('div');
+        header.className = 'depth-header';
+        header.innerHTML = `<span>⛏️ Level ${lvl} (${meters} Meters Deep)</span> <span>${isLocked ? '🔒 LOCKED' : '✅ OPEN'}</span>`;
+        section.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'depth-grid';
+
+        // 10 Blocks per layer
+        for (let b = 0; b < 10; b++) {
+          const block = document.createElement('div');
+          block.className = 'grid-block';
+
+          // Random gem chance
+          const rand = Math.random();
+          let gem = GEM_TYPES[0];
+          if (rand > 0.85) gem = GEM_TYPES[4];
+          else if (rand > 0.70) gem = GEM_TYPES[3];
+          else if (rand > 0.50) gem = GEM_TYPES[2];
+          else if (rand > 0.30) gem = GEM_TYPES[1];
+
+          block.innerText = '❓';
+          block.onclick = function() {
+            if (isLocked) {
+              alert('🔒 Level ' + lvl + ' is LOCKED! You must upgrade on the Main Menu or Sidebar to unlock ' + meters + 'm depth!');
+              return;
+            }
+            if (block.classList.contains('dug')) return;
+
+            block.classList.add('dug');
+            block.innerText = gem.icon;
+            gems += gem.val;
+            budget += gem.money;
+            vibratePhone(25);
+            updateUI();
+          };
+
+          grid.appendChild(block);
+        }
+        section.appendChild(grid);
+
+        // Locked Overlay
+        if (isLocked) {
+          const overlay = document.createElement('div');
+          overlay.className = 'locked-overlay';
+          overlay.innerHTML = `
+            <h3>🔒 Level ${lvl} Locked (${meters}m Deep)</h3>
+            <p>Upgrade to Level ${lvl} on the Main Menu to unlock!</p>
+          `;
+          section.appendChild(overlay);
+        }
+
+        container.appendChild(section);
+      }
+    }
+
+    // 30 SECONDS REFRESH LOOP
+    setInterval(() => {
+      refreshSecondsLeft--;
+      if (refreshSecondsLeft <= 0) {
+        refreshSecondsLeft = 30;
+        // Reshuffle underground map
+        renderMap();
+        // Give free passive gems
+        gems += 10;
+        updateUI();
+      }
+      document.getElementById('refresh-timer').innerText = refreshSecondsLeft + 's';
+    }, 1000);
+
+    function vibratePhone(ms) {
+      if (navigator.vibrate) navigator.vibrate(ms);
+    }
+
+    function startGame() {
+      document.getElementById('main-menu').style.display = 'none';
+      renderMap();
+      updateUI();
+    }
+
+    function openMainMenu() {
+      updateUI();
+      document.getElementById('main-menu').style.display = 'flex';
+    }
+
+    // Initial render
+    updateUI();
+  </script>
+</body>
+</html>
