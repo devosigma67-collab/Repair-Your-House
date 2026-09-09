@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get project
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Java
@@ -16,33 +16,16 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Capacitor
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-
-      - name: Create Capacitor project
-        run: |
-          npx cap init "Repair Your House" "com.devosigma67.repairyourhouse" --web-dir .
-
-      - name: Add Android
-        run: npx cap add android
-
-      - name: Sync
-        run: npx cap sync android
+      - name: Make Gradle executable
+        run: chmod +x gradlew
 
       - name: Build APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Repair-Your-House-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
