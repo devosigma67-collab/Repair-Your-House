@@ -1,0 +1,6 @@
+{
+  "name": "Repair Your House",
+  "description": "Dig deep underground to find precious gems, upgrade your tools, and repair your broken house into a magnificent mansion!",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
